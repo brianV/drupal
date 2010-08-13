@@ -345,17 +345,21 @@ function aggregator_parse_w3cdtf($date_str) {
  */
 function aggregator_convert_relative_links($link, $description) {
 
-  // Parse and strip any query values off of the link.
-  $url_parsed = drupal_parse_url($link);
-  $item_path  = $url_parsed['path'];
+  // Create parts to use in the replacement patterns.
+  $item_url_parts = parse_url($link);
+  $item_base_url  = $item_url_parts['scheme'] . '://' . $item_url_parts['host'];
 
-  // Get the directory path for this item to prepend to relative links.
-  $parts = pathinfo($item_path);
-  $item_dir = $parts['dirname'] . '/';
+  if (array_key_exists('path', $item_url_parts)) {
+    $item_path_parts = pathinfo($item_url_parts['path']);
+    $item_dir = $item_base_url . $item_path_parts['dirname'] . '/';
+  }
+  else {
+    $item_dir = $item_base_url . '/';
+  }
 
   // Replace all links starting with '/'.
   $regexp      = "/\b(href|src)(\s*=\s*['\"])([\/][A-Za-z0-9\/]*)(['\"])/";
-  $description = preg_replace($regexp, '$1$2' . $item_dir . '$3$4', $description);
+  $description = preg_replace($regexp, '$1$2' . $item_base_url . '$3$4', $description);
 
   // Replace all relative links not starting with '/'. Absolute links are not
   // matched, since ':' is not in the capture pattern.
