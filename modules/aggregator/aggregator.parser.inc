@@ -138,6 +138,11 @@ function aggregator_parse_feed(&$data, $feed) {
       $item['description'] = $item['content'];
     }
 
+    // Try to replace all relative links with absolute links.
+    if (!empty($item['description'])) {
+      $item['decription'] = aggregator_convert_relative_links($item['link'], $item['description']);
+    }
+
     // Try to resolve and parse the item's publication date.
     $date = '';
     foreach (array('pubdate', 'dc:date', 'dcterms:issued', 'dcterms:created', 'dcterms:modified', 'issued', 'created', 'modified', 'published', 'updated') as $key) {
@@ -322,4 +327,40 @@ function aggregator_parse_w3cdtf($date_str) {
   else {
     return FALSE;
   }
+}
+
+/**
+ * Converts relative links in description to absolute links.
+ *
+ * Convert all relative links contained in the src and href elements within
+ * a feed item's description to absolute links.
+ *
+ * @param $link
+ *   This is the link to the item, taken from $item['link'].
+ * @param $description
+ *   The description, taken from $item['description'].
+ *
+ * @return
+ *   The string passed in $description with all relative links changed.
+ */
+function aggregator_convert_relative_links($link, $description) {
+
+  // Parse and strip any query values off of the link.
+  $url_parsed = drupal_parse_url($link);
+  $item_path  = $url_parsed['path'];
+
+  // Get the directory path for this item to prepend to relative links.
+  $parts = pathinfo($item_path);
+  $item_dir = $parts['dirname'] . '/';
+
+  // Replace all links starting with '/'.
+  $regexp      = "/\b(href|src)(\s*=\s*['\"])([\/][A-Za-z0-9\/]*)(['\"])/";
+  $description = preg_replace($regexp, '$1$2' . $item_dir . '$3$4', $description);
+
+  // Replace all relative links not starting with '/'. Absolute links are not
+  // matched, since ':' is not in the capture pattern.
+  $regexp      = "/\b(href|src)(\s*=\s*['\"])([^\/][A-Za-z0-9\/]*)(['\"])/";
+  $description = preg_replace($regexp, '$1$2' . $item_dir . '$3$4', $description);
+
+  return $description;
 }
